@@ -1,0 +1,37 @@
+name: Update V2Ray Configs
+
+on:
+  schedule:
+    # اجرا هر 6 ساعت یکبار (می‌توانید تغییر دهید)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # قابلیت اجرای دستی دکمه‌ای
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Scraper Script
+        run: python scraper.py
+
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Updated configs via GitHub Action"
+          file_pattern: filtered_configs.txt
+          branch: main

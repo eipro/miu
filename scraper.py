@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 import os
 import base64
+import time
 
 # لیست کانال‌ها
 channels = [
@@ -36,23 +37,48 @@ prefixes = ('vless://',)
 def extract_username(url):
     return url.split('/')[-1]
 
+def get_flag_emoji(country_code):
+    """تبدیل کد دو حرفی کشور به ایموجی پرچم"""
+    if not country_code:
+        return "🏳️"
+    return ''.join([chr(ord(c) + 127397) for c in country_code.upper()])
+
+def get_ip_info(ip):
+    """دریافت اطلاعات جغرافیایی IP"""
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=countryCode", timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('countryCode', '')
+    except:
+        pass
+    return ""
+
+def parse_vless(config):
+    """استخراج IP و Port از کانفیگ VLESS برای تست و بررسی تکراری"""
+    # فرمت معمول: vless://uuid@ip:port?params...
+    pattern = r'vless://[^@]+@([^:]+):(\d+)'
+    match = re.search(pattern, config)
+    if match:
+        return match.group(1), int(match.group(2))
+    return None, None
+
 def fetch_configs():
-    all_configs = ""
-    config_count = 1
+    raw_configs = []
+    seen_identifiers = set() # برای حذف تکراری‌ها
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
 
+    # 1. جمع‌آوری اولیه کانفیگ‌ها
+    print("📥 Start scraping channels...")
     for url in channels:
         username = extract_username(url)
-        print(f"Checking {username}...")
         
         try:
             response = requests.get(f"https://t.me/s/{username}", headers=headers, timeout=10)
-            
             if response.status_code != 200:
-                print(f"Failed to fetch {username}")
                 continue
 
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -70,26 +96,57 @@ def fetch_configs():
                     if clean_line.startswith(prefixes):
                         if '#' in clean_line:
                             clean_line = clean_line.split('#')[0]
-                        
-                        new_name = f"Config-{config_count}"
-                        final_config = f"{clean_line}#{new_name}"
-                        
-                        all_configs += final_config + "\n"
-                        config_count += 1
+                        raw_configs.append(clean_line)
             
         except Exception as e:
             print(f"Error scraping {username}: {e}")
 
-    # تبدیل به Base64
-    encoded_configs = base64.b64encode(all_configs.encode('utf-8')).decode('utf-8')
+    print(f"✅ Scraped {len(raw_configs)} raw configs. Starting processing...")
 
-    # ذخیره در فایل
-    output_file = "filtered_configs.txt"
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(encoded_configs)
+    # 2. پردازش کانفیگ‌ها (حذف تکراری، افزودن پرچم)
+    final_configs = ""
+    config_count = 1
     
-    print(f"\n✅ Done. {config_count-1} configs found.")
-    print(f"Encoded configs saved to {output_file}")
+    for config in raw_configs:
+        ip, port = parse_vless(config)
+        
+        if not ip or not port:
+            continue
+            
+        # شناسه یکتا برای حذف تکراری (IP:Port)
+        identifier = f"{ip}:{port}"
+        if identifier in seen_identifiers:
+            continue # تکراری است
+        
+        seen_identifiers.add(identifier)
+        
+        print(f"Processing {ip}:{port}...", end="\r")
+        
+        # دریافت پرچم
+        country_code = get_ip_info(ip)
+        flag = get_flag_emoji(country_code)
+        
+        # ساخت نام جدید
+        new_name = f"{flag} Config-{config_count}"
+        final_config = f"{config}#{new_name}"
+        
+        final_configs += final_config + "\n"
+        config_count += 1
+        
+        # وقفه کوتاه برای جلوگیری از مسدود شدن توسط IP-API
+        time.sleep(0.5)
+
+    # 3. ذخیره خروجی
+    if final_configs:
+        encoded_configs = base64.b64encode(final_configs.encode('utf-8')).decode('utf-8')
+        
+        output_file = "filtered_configs.txt"
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(encoded_configs)
+        
+        print(f"\n\n🎉 Success! {config_count-1} unique configs found and saved.")
+    else:
+        print("\n\n⚠️ No valid configs found after filtering.")
 
 if __name__ == "__main__":
     fetch_configs()

@@ -29,6 +29,10 @@ channels = [
     'https://t.me/YamYamProxy',
     "https://t.me/ZAVI3H",
     'https://t.me/V2rayfastt',
+    "https://t.me/s/v2rayfree",
+    "https://t.me/s/PrivateVPNs",
+    "https://t.me/s/prrofile_purple",
+    "https://t.me/s/DirectVPN",
 ]
 
 # پروتکل‌های مورد نظر

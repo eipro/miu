@@ -14,7 +14,7 @@ MAX_CONFIGS_PER_COUNTRY = 50
 TIME_LIMIT_HOURS = 48
 PREFIXES = ('vless://', 'vmess://', 'trojan://', 'ss://', 'hysteria2://', 'tuic://')
 
-# نام فایل‌های خروجی
+# نام فایل خروجی
 OUTPUT_FILE = "filtered_configs.txt"
 
 def load_channels():
@@ -28,19 +28,15 @@ def load_channels():
     return channel_list
 
 def get_ip_info(ip):
+    """فقط دریافت نام کشور (بدون ISP)"""
     try:
-        response = requests.get(f"http://ip-api.com/json/{ip}?fields=countryCode,isp,org", timeout=3)
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=countryCode", timeout=3)
         if response.status_code == 200:
             data = response.json()
-            country = data.get('countryCode', '')
-            isp = data.get('isp', '') or data.get('org', '')
-            if isp:
-                isp = isp.split(',')[0].split(' ')[0]
-                if len(isp) > 15: isp = isp[:15]
-            return country, isp
+            return data.get('countryCode', '')
     except:
         pass
-    return "", ""
+    return ""
 
 def get_flag_emoji(country_code):
     if not country_code: return "🏳️"
@@ -67,11 +63,6 @@ def is_recent_message(msg_soup):
     except:
         pass
     return True
-
-def is_reality(config):
-    if 'security=reality' in config or 'pbk=' in config or 'fp=' in config:
-        return True
-    return False
 
 def rename_config(config, new_name, protocol):
     try:
@@ -146,35 +137,35 @@ def fetch_configs():
         if f"{ip}:{port}" in seen: continue
         seen.add(f"{ip}:{port}")
         
-        country, isp = get_ip_info(ip)
+        # فقط دریافت نام کشور
+        country = get_ip_info(ip)
+        
         if country in BLOCKED_COUNTRIES: continue
         
-        # Limit check
+        # بررسی محدودیت تعداد
         stats[country if country else "Unknown"] = stats.get(country if country else "Unknown", 0) + 1
         if stats.get(country, 0) > MAX_CONFIGS_PER_COUNTRY: continue
         
         print(f"Processing {counter}...", end="\r")
         
         flag = get_flag_emoji(country)
-        features = "⚡Reality" if is_reality(config) else ""
-        features += " 🔒" if str(port) == '443' else ""
         
-        name = f"{flag} {isp} {counter} {features}"
+        # نام‌گذاری ساده: 🇩🇪 Config-1
+        name = f"{flag} Config-{counter}"
+        
         final = rename_config(config, name, proto)
         
-        processed.append((country if country else "ZZZ", final, 
-                         {'protocol': proto}))
+        processed.append((country if country else "ZZZ", final))
         counter += 1
         time.sleep(0.2)
 
     processed.sort(key=lambda x: x[0])
     
-    # Write Main File
+    # ذخیره فایل اصلی
     with open(OUTPUT_FILE, "w") as f:
         f.write(base64.b64encode("\n".join([x[1] for x in processed]).encode('utf-8')).decode('utf-8'))
         
     print(f"\n🎉 Done! Total configs: {len(processed)}")
-    # HTML and README generation removed for privacy
 
 if __name__ == "__main__":
     fetch_configs()

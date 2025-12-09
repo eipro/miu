@@ -173,13 +173,6 @@ def fetch_configs():
     with open(OUTPUT_FILE, "w") as f:
         f.write(base64.b64encode("\n".join([x[1] for x in processed]).encode('utf-8')).decode('utf-8'))
         
-    # Write Protocol Files
-    for p in ['vless', 'vmess', 'trojan', 'ss']:
-        subset = [x[1] for x in processed if x[2]['protocol'] == p]
-        if subset:
-            with open(f"{p}.txt", "w") as f:
-                f.write(base64.b64encode("\n".join(subset).encode('utf-8')).decode('utf-8'))
-
     print(f"\n🎉 Done! Total configs: {len(processed)}")
     # HTML and README generation removed for privacy
 

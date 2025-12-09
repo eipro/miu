@@ -14,9 +14,8 @@ MAX_CONFIGS_PER_COUNTRY = 50
 TIME_LIMIT_HOURS = 48
 PREFIXES = ('vless://', 'vmess://', 'trojan://', 'ss://', 'hysteria2://', 'tuic://')
 
+# نام فایل‌های خروجی
 OUTPUT_FILE = "filtered_configs.txt"
-README_FILE = "README.md"
-HTML_FILE = "index.html"
 
 def load_channels():
     channel_list = []
@@ -112,72 +111,6 @@ def parse_config_details(config):
             return protocol, match.group(1), match.group(2)
         return protocol, 'Unknown', '0'
 
-def generate_html(configs):
-    rows = ""
-    for idx, c in enumerate(configs):
-        details = c[2]
-        link = c[1]
-        rows += f"""
-        <tr>
-            <td>{idx + 1}</td>
-            <td>{details['flag']}</td>
-            <td>{details['country']}</td>
-            <td>{details['isp']}</td>
-            <td><span class="badge {details['protocol']}">{details['protocol']}</span></td>
-            <td>{details['port']} {details['features']}</td>
-            <td><button class="btn-copy" onclick="copyToClipboard('{link}')">Copy</button></td>
-        </tr>"""
-        
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxy Configs</title>
-    <style>
-        body {{ font-family: sans-serif; background: #121212; color: #eee; padding: 20px; }}
-        table {{ width: 100%; border-collapse: collapse; background: #1e1e1e; }}
-        th, td {{ padding: 10px; border-bottom: 1px solid #333; text-align: left; }}
-        th {{ background: #2c2c2c; color: #4CAF50; }}
-        .btn-copy {{ background: #2196F3; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; }}
-        .badge {{ padding: 2px 6px; border-radius: 4px; font-size: 0.8em; color: white; }}
-        .vless {{ background: #9c27b0; }} .vmess {{ background: #e91e63; }} 
-        .trojan {{ background: #ff9800; }} .ss {{ background: #607d8b; }}
-    </style>
-</head>
-<body>
-    <h1>🎒 Proxy List</h1>
-    <p>Total: {len(configs)} | Updated: {datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")}</p>
-    <table>
-        <thead><tr><th>#</th><th>Flag</th><th>Country</th><th>ISP</th><th>Proto</th><th>Port/Tag</th><th>Action</th></tr></thead>
-        <tbody>{rows}</tbody>
-    </table>
-    <script>
-        function copyToClipboard(text) {{ navigator.clipboard.writeText(text).then(() => alert('Copied!')); }}
-    </script>
-</body>
-</html>"""
-    with open(HTML_FILE, "w", encoding="utf-8") as f: f.write(html)
-
-def update_readme(configs, stats):
-    md = f"""# 🎒 Proxy Collector
-**Last Update:** `{datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")}`
-**Total Configs:** `{len(configs)}`
-
-## 🚀 Usage
-- **All Configs:** [filtered_configs.txt](filtered_configs.txt)
-- **Dashboard:** [View HTML Dashboard](https://github.com/{os.environ.get('GITHUB_REPOSITORY', 'your/repo')}/pages/)
-
-## 📊 Stats by Country
-| Flag | Country | Count |
-|------|---------|-------|
-"""
-    sorted_stats = sorted(stats.items(), key=lambda x: x[1], reverse=True)
-    for country, count in sorted_stats:
-        md += f"| {get_flag_emoji(country)} | {country} | {count} |\n"
-        
-    with open(README_FILE, "w", encoding="utf-8") as f: f.write(md)
-
 def fetch_configs():
     channels = load_channels()
     if not channels: return
@@ -216,10 +149,8 @@ def fetch_configs():
         country, isp = get_ip_info(ip)
         if country in BLOCKED_COUNTRIES: continue
         
-        # Stats
-        stats[country if country else "Unknown"] = stats.get(country if country else "Unknown", 0) + 1
-        
         # Limit check
+        stats[country if country else "Unknown"] = stats.get(country if country else "Unknown", 0) + 1
         if stats.get(country, 0) > MAX_CONFIGS_PER_COUNTRY: continue
         
         print(f"Processing {counter}...", end="\r")
@@ -232,25 +163,25 @@ def fetch_configs():
         final = rename_config(config, name, proto)
         
         processed.append((country if country else "ZZZ", final, 
-                         {'flag': flag, 'country': country, 'isp': isp, 'protocol': proto, 'port': port, 'features': features}))
+                         {'protocol': proto}))
         counter += 1
         time.sleep(0.2)
 
     processed.sort(key=lambda x: x[0])
     
-    # Write Files
+    # Write Main File
     with open(OUTPUT_FILE, "w") as f:
         f.write(base64.b64encode("\n".join([x[1] for x in processed]).encode('utf-8')).decode('utf-8'))
         
+    # Write Protocol Files
     for p in ['vless', 'vmess', 'trojan', 'ss']:
         subset = [x[1] for x in processed if x[2]['protocol'] == p]
         if subset:
             with open(f"{p}.txt", "w") as f:
                 f.write(base64.b64encode("\n".join(subset).encode('utf-8')).decode('utf-8'))
 
-    generate_html(processed)
-    update_readme(processed, stats)
-    print("\n🎉 Done!")
+    print(f"\n🎉 Done! Total configs: {len(processed)}")
+    # HTML and README generation removed for privacy
 
 if __name__ == "__main__":
     fetch_configs()

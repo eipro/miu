@@ -1,10 +1,9 @@
-name: Update V2Ray Configs
+name: Update Proxy Configs
 
 on:
   schedule:
-    # اجرا هر 6 ساعت یکبار (می‌توانید تغییر دهید)
-    - cron: '0 */6 * * *'
-  workflow_dispatch: # قابلیت اجرای دستی دکمه‌ای
+    - cron: '0 */4 * * *' # اجرا هر 4 ساعت
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -32,6 +31,7 @@ jobs:
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Updated configs via GitHub Action"
-          file_pattern: filtered_configs.txt
+          commit_message: "Auto-update proxies [skip ci]"
+          # اینجا خیلی مهم است: لیست همه فایل‌هایی که باید ذخیره شوند
+          file_pattern: '*.txt *.html *.md'
           branch: main

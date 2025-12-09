@@ -1,4 +1,4 @@
-name: Update Proxy Configs
+name: Update
 
 on:
   schedule:

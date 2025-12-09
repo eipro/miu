@@ -31,7 +31,7 @@ jobs:
       - name: Commit and Push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Auto-update proxies [skip ci]"
-          # اینجا خیلی مهم است: لیست همه فایل‌هایی که باید ذخیره شوند
-          file_pattern: '*.txt *.html *.md'
+          commit_message: "Update logs [skip ci]"
+          # تغییر مهم: فقط فایل‌های تکست ذخیره می‌شوند تا پروفایل گیت‌هاب شلوغ نشود
+          file_pattern: '*.txt'
           branch: main
